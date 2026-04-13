@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CryptoWatch</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:#f0f2f5;color:#1a2233;font-family:'DM Mono','Courier New',monospace;font-size:13px}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#c0cce0;border-radius:2px}
+.card{background:#fff;border:1px solid #dde3ee;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.rh:hover{background:#f5f7fa!important;cursor:default}
+.btn{cursor:pointer;border:none;font-family:'DM Mono',monospace;border-radius:8px;transition:all .15s;font-size:12px}
+.btn:hover{filter:brightness(.95);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+input,select{background:#fff;border:1px solid #c8d4e8;color:#1a2233;border-radius:8px;padding:9px 13px;font-family:'DM Mono',monospace;font-size:13px;outline:none;width:100%}
+input:focus,select:focus{border-color:#3a8fff;box-shadow:0 0 0 3px rgba(50,140,255,.1)}
+select option{background:#fff;color:#1a2233}
+@keyframes fadeUp{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes wakePulse{0%,100%{opacity:1}50%{opacity:.6}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fadein{animation:fadeUp .2s ease both}
+.blink{animation:blink 1.5s infinite}
+.wake{animation:wakePulse 2s infinite}
+.spin{display:inline-block;animation:spin .8s linear infinite}
+header{background:#fff;border-bottom:1px solid #dde3ee;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);position:sticky;top:0;z-index:100}
+.tabs{background:#fff;border-bottom:1px solid #dde3ee;padding:5px 18px;display:flex;gap:2px;position:sticky;top:57px;z-index:99}
+.tab-btn{cursor:pointer;border:none;background:none;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.5px;padding:8px 18px;border-radius:8px;transition:all .15s;display:flex;align-items:center;gap:6px}
+.tab-btn.active{color:#1a2233;background:#edf0f7;font-weight:500}
+.tab-btn:not(.active){color:#7a8aaa}
+.badge{background:#e8445a;color:#fff;font-size:9px;padding:1px 6px;border-radius:10px}
+.content{padding:20px 24px}
+.tf-pills{display:flex;gap:3px;background:#edf0f7;border:1px solid #dde3ee;border-radius:10px;padding:3px}
+.tf-pill{cursor:pointer;border:none;font-family:'DM Mono',monospace;font-size:11px;padding:5px 14px;border-radius:8px;transition:all .15s}
+.tf-pill.active{background:#fff;color:#2255cc;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.tf-pill:not(.active){background:transparent;color:#7a8aaa}
+.market-grid{display:grid;grid-template-columns:150px 120px 80px 1fr 1fr 130px 36px;gap:8px;padding:12px 20px;align-items:center;transition:background .15s;border-bottom:1px solid #edf0f7}
+.market-head{font-size:10px;color:#8898bb;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #edf0f7!important;background:#fafbfd}
+.gauge-wrap{display:flex;flex-direction:column;gap:4px}
+.gauge-bar-bg{height:5px;background:#e8ecf5;border-radius:3px;overflow:hidden}
+.gauge-bar-fill{height:100%;border-radius:3px;transition:width .7s ease}
+.di-wrap{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.di-badge{font-size:9px;padding:2px 7px;border-radius:8px;font-weight:500}
+.alert-row{border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;border:1px solid #dde3ee;background:#fff}
+.log-row{background:#fff;border:1px solid #dde3ee;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px}
+.status-bar{padding:10px 24px;font-size:12px;border-bottom:1px solid;font-weight:500}
+.coin-tag{display:inline-flex;align-items:center;gap:6px;background:#edf0f7;border:1px solid #dde3ee;border-radius:20px;padding:4px 10px 4px 8px;font-size:12px;color:#1a2233;font-weight:500}
+.search-result{padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f2f5;transition:background .1s;font-size:13px}
+.search-result:hover{background:#f0f4ff}
+.search-result:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-family:Syne,sans-serif;font-weight:800;font-size:20px;background:linear-gradient(90deg,#2255cc,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent">◈ CRYPTOWATCH</span>
+    <span id="sync-badge" style="font-size:10px;color:#7a8aaa;background:#f0f2f5;border:1px solid #dde3ee;padding:2px 10px;border-radius:20px">啟動中…</span>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="btn" id="line-test-btn" onclick="testLine()" style="font-size:11px;padding:6px 14px;border-radius:20px;background:#edfaf4;color:#1a7a4a;border:1px solid #a8dfc3">📲 測試 LINE</button>
+    <button class="btn" id="wake-btn" onclick="toggleWake()" style="font-size:11px;padding:6px 14px;border-radius:20px;background:#fffae8;color:#8a6200;border:1px solid #f0d980">💤 防止休眠</button>
+    <button class="btn" onclick="refreshAll()" style="background:#edf0f7;color:#4a5a7a;padding:7px 13px;font-size:14px;border:1px solid #dde3ee">↻</button>
+  </div>
+</header>
+<div id="status-bar" style="display:none" class="status-bar"></div>
+<div class="tabs">
+  <button class="tab-btn active" id="tab-market" onclick="switchTab('market')">市場概覽</button>
+  <button class="tab-btn" id="tab-coins" onclick="switchTab('coins')">幣種管理</button>
+  <button class="tab-btn" id="tab-alerts" onclick="switchTab('alerts')">警報設定 <span class="badge" id="alert-badge" style="display:none">0</span></button>
+  <button class="tab-btn" id="tab-log" onclick="switchTab('log')">觸發記錄 <span class="badge" id="log-badge" style="display:none">0</span></button>
+</div>
+
+<!-- MARKET -->
+<div id="page-market" class="content">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;color:#7a8aaa;letter-spacing:1px;text-transform:uppercase">K線週期</span>
+      <div class="tf-pills">
+        <button class="tf-pill active" id="tf-1H" onclick="setViewTf('1H')">1小時</button>
+        <button class="tf-pill" id="tf-4H" onclick="setViewTf('4H')">4小時</button>
+        <button class="tf-pill" id="tf-1D" onclick="setViewTf('1D')">日線</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7a8aaa"><div style="width:8px;height:8px;border-radius:50%;background:#e8445a"></div>RSI&gt;70 超買</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7a8aaa"><div style="width:8px;height:8px;border-radius:50%;background:#11a86a"></div>RSI&lt;30 超賣</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7a8aaa"><div style="width:8px;height:8px;border-radius:50%;background:#7c3aed"></div>ADX&gt;25 趨勢</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#7a8aaa"><div style="width:8px;height:8px;border-radius:50%;background:#c0cce0"></div>ADX&lt;20 盤整</div>
+    </div>
+  </div>
+  <div class="card" style="overflow:hidden">
+    <div class="market-grid market-head">
+      <span>幣種</span><span style="text-align:right">價格</span><span style="text-align:right">24h</span>
+      <span style="padding-left:8px" id="rsi-head">RSI (1H)</span>
+      <span style="padding-left:8px" id="adx-head">ADX (1H)</span>
+      <span style="text-align:right">成交量</span><span></span>
+    </div>
+    <div id="market-rows"><div style="padding:40px;text-align:center;color:#aab8cc">載入中，請稍候…</div></div>
+  </div>
+  <div style="font-size:10px;color:#aab8cc;margin-top:10px;text-align:right">CoinGecko API · 價格每30秒 · 1H每1分鐘 · 4H每4分鐘 · 日線每10分鐘</div>
+</div>
+
+<!-- COINS -->
+<div id="page-coins" class="content" style="display:none;max-width:680px">
+  <div style="font-size:11px;color:#7a8aaa;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px">幣種管理（最多 20 個）</div>
+  <div class="card" style="padding:20px;margin-bottom:20px">
+    <div style="font-size:12px;color:#2255cc;font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">新增幣種</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <div style="position:relative;flex:1">
+        <input type="text" id="coin-search-input" placeholder="輸入幣種代號，例如：PEPE、LINK、UNI" oninput="onCoinSearch()" onkeydown="if(event.key==='Enter')searchCoin()">
+        <div id="search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #dde3ee;border-radius:10px;margin-top:4px;z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.1)"></div>
+      </div>
+      <button class="btn" onclick="searchCoin()" id="search-btn" style="background:linear-gradient(90deg,#2255cc,#3a70ee);color:#fff;padding:9px 18px;white-space:nowrap;font-weight:500">搜尋</button>
+    </div>
+    <div id="search-status" style="font-size:11px;color:#7a8aaa;min-height:18px"></div>
+  </div>
+  <div class="card" style="padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:12px;color:#1a2233;font-weight:600">目前追蹤幣種 <span id="coin-count" style="color:#7a8aaa;font-weight:400">(0/20)</span></div>
+      <button class="btn" onclick="resetCoins()" style="background:#fef0f0;color:#cc2233;border:1px solid #f0c0c4;padding:4px 12px;font-size:11px">重置預設</button>
+    </div>
+    <div id="coin-list" style="display:flex;flex-wrap:wrap;gap:8px"><span style="color:#aab8cc;font-size:12px">載入中…</span></div>
+  </div>
+  <div style="font-size:11px;color:#aab8cc;margin-top:12px;line-height:1.8">
+    💡 輸入幣種代號（如 BTC、PEPE）後點搜尋，從結果中選擇即可加入。<br>
+    幣種和警報資料存在瀏覽器，重新整理後不會消失。
+  </div>
+</div>
+
+<!-- ALERTS -->
+<div id="page-alerts" class="content" style="display:none;max-width:700px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <span style="font-size:11px;color:#7a8aaa;text-transform:uppercase;letter-spacing:1px" id="alert-count">監控中 0 / 0</span>
+    <button class="btn" id="add-btn" onclick="toggleForm()" style="background:linear-gradient(90deg,#2255cc,#3a70ee);color:#fff;padding:8px 18px;font-weight:500">+ 新增警報</button>
+  </div>
+  <div id="alert-form" class="card fadein" style="display:none;padding:20px;margin-bottom:16px">
+    <div style="font-size:11px;color:#2255cc;margin-bottom:14px;letter-spacing:1px;text-transform:uppercase;font-weight:600">設定新警報</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <select id="form-coin"></select>
+      <select id="form-type" onchange="updateFormHint()">
+        <option value="price_above">價格高於</option>
+        <option value="price_below">價格低於</option>
+        <option value="price_change_up">24h 漲幅 ≥</option>
+        <option value="price_change_down">24h 跌幅 ≥</option>
+        <option value="rsi_above">RSI 高於</option>
+        <option value="rsi_below" selected>RSI 低於</option>
+        <option value="adx_above">ADX 高於</option>
+        <option value="adx_below">ADX 低於</option>
+      </select>
+      <div id="tf-row">
+        <div style="font-size:11px;color:#7a8aaa;margin-bottom:7px;font-weight:500">K線週期</div>
+        <div class="tf-pills" style="display:inline-flex">
+          <button class="tf-pill active" id="ftf-1H" onclick="setFormTf('1H')">1小時</button>
+          <button class="tf-pill" id="ftf-4H" onclick="setFormTf('4H')">4小時</button>
+          <button class="tf-pill" id="ftf-1D" onclick="setFormTf('1D')">日線</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="form-value" placeholder="RSI 值（超賣 30 / 超買 70）" value="30" onkeydown="if(event.key==='Enter')addAlert()">
+        <button class="btn" onclick="addAlert()" style="background:linear-gradient(90deg,#11a86a,#0d8a55);color:#fff;padding:9px 20px;font-weight:600;white-space:nowrap">確認新增</button>
+      </div>
+      <div id="form-hint" style="font-size:11px;color:#5a7aaa;line-height:1.7;background:#f5f8ff;border-left:3px solid #2255cc;padding:8px 12px;border-radius:0 8px 8px 0"></div>
+    </div>
+  </div>
+  <div id="alert-list"></div>
+</div>
+
+<!-- LOG -->
+<div id="page-log" class="content" style="display:none;max-width:700px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <span style="font-size:11px;color:#7a8aaa;text-transform:uppercase;letter-spacing:1px" id="log-count">觸發記錄（0 筆）</span>
+    <button class="btn" onclick="clearLog()" style="background:#edf0f7;color:#4a5a7a;padding:5px 12px;border:1px solid #dde3ee">清除</button>
+  </div>
+  <div id="log-list"><div style="text-align:center;color:#aab8cc;padding:48px 0">尚無觸發記錄</div></div>
+</div>
+
+<script>
+const PROXY="https://line-proxy-c1em.onrender.com";
+const MAX_COINS=20;
+const DEFAULT_COINS=[
+  {id:"bitcoin",sym:"BTC",name:"Bitcoin"},
+  {id:"ethereum",sym:"ETH",name:"Ethereum"},
+  {id:"solana",sym:"SOL",name:"Solana"},
+  {id:"binancecoin",sym:"BNB",name:"BNB"},
+  {id:"ripple",sym:"XRP",name:"XRP"},
+];
+const COIN_COLORS=["#f7931a","#627eea","#9945ff","#f3ba2f","#00aae4","#2775ca","#e84142","#e84393","#16c784","#0033ad","#ff0420","#26a17b","#c2a633","#6b8cff","#f09242","#1652f0","#00d4aa","#ff6b35","#7b61ff","#4CAF50"];
+const TF={"1H":{days:2,ms:60000},"4H":{days:14,ms:240000},"1D":{days:60,ms:600000}};
+const AT=[
+  {id:"price_above",label:"價格高於",unit:"$",color:"#11a86a"},
+  {id:"price_below",label:"價格低於",unit:"$",color:"#e8445a"},
+  {id:"price_change_up",label:"24h漲幅≥",unit:"%",color:"#2255cc"},
+  {id:"price_change_down",label:"24h跌幅≥",unit:"%",color:"#e87722"},
+  {id:"rsi_above",label:"RSI高於",unit:"",color:"#e8445a"},
+  {id:"rsi_below",label:"RSI低於",unit:"",color:"#11a86a"},
+  {id:"adx_above",label:"ADX高於",unit:"",color:"#7c3aed"},
+  {id:"adx_below",label:"ADX低於",unit:"",color:"#e8a822"},
+];
+
+let coins=loadCoins(),prices={},rsiCache={},adxCache={};
+let viewTf="1H",formTf="1H";
+let alerts=loadAlerts(),log=loadLog();
+let firedIds=new Set(alerts.filter(a=>a.fired).map(a=>a.id));
+let wakeActive=false,wakeLock=null,formVisible=false,searchTimer=null;
+let searchResults=[];
+
+function loadCoins(){try{const s=localStorage.getItem("cw_coins");return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_COINS));}catch{return JSON.parse(JSON.stringify(DEFAULT_COINS));}}
+function saveCoins(){try{localStorage.setItem("cw_coins",JSON.stringify(coins));}catch{}}
+function loadAlerts(){try{const s=localStorage.getItem("cw_alerts");return s?JSON.parse(s):[];}catch{return[];}}
+function saveAlerts(){try{localStorage.setItem("cw_alerts",JSON.stringify(alerts));}catch{}}
+function loadLog(){try{const s=localStorage.getItem("cw_log");return s?JSON.parse(s):[];}catch{return[];}}
+function saveLog(){try{localStorage.setItem("cw_log",JSON.stringify(log));}catch{}}
+
+function calcRSI(c,p=14){
+  if(c.length<p+1)return null;
+  let ag=0,al=0;
+  for(let i=1;i<=p;i++){const d=c[i]-c[i-1];if(d>=0)ag+=d;else al-=d;}
+  ag/=p;al/=p;
+  for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];ag=(ag*(p-1)+Math.max(d,0))/p;al=(al*(p-1)+Math.max(-d,0))/p;}
+  if(al===0)return 100;
+  return parseFloat((100-100/(1+ag/al)).toFixed(2));
+}
+function calcADX(ohlc,p=14){
+  if(ohlc.length<p*2+1)return null;
+  const trs=[],pDMs=[],mDMs=[];
+  for(let i=1;i<ohlc.length;i++){
+    const[,,h,l]=ohlc[i],[,,ph,pl,pc]=ohlc[i-1];
+    trs.push(Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc)));
+    const up=h-ph,dn=pl-l;
+    pDMs.push(up>dn&&up>0?up:0);mDMs.push(dn>up&&dn>0?dn:0);
+  }
+  function w(a,p){let s=a.slice(0,p).reduce((x,y)=>x+y,0);const r=[s];for(let i=p;i<a.length;i++){s=s-s/p+a[i];r.push(s);}return r;}
+  const sT=w(trs,p),sP=w(pDMs,p),sM=w(mDMs,p);
+  const dx=sT.map((t,i)=>{if(t===0)return 0;const pd=sP[i]/t*100,md=sM[i]/t*100;return Math.abs(pd-md)/(pd+md)*100;});
+  const adx=parseFloat((dx.slice(-p).reduce((a,b)=>a+b,0)/p).toFixed(2));
+  const l=sT.length-1;
+  return{adx,plusDI:parseFloat((sP[l]/sT[l]*100).toFixed(2)),minusDI:parseFloat((sM[l]/sT[l]*100).toFixed(2))};
+}
+
+const fp=n=>n==null?"—":n>=1000?"$"+n.toLocaleString("en-US",{maximumFractionDigits:2}):n>=1?"$"+n.toFixed(4):"$"+n.toFixed(6);
+const fpct=n=>n==null?"—":(n>=0?"+":"")+n.toFixed(2)+"%";
+const fvol=n=>n==null?"—":n>=1e9?"$"+(n/1e9).toFixed(2)+"B":n>=1e6?"$"+(n/1e6).toFixed(2)+"M":"$"+n.toLocaleString();
+const rsiZ=v=>v==null?{l:"—",c:"#aab8cc"}:v>=70?{l:"超買",c:"#e8445a"}:v<=30?{l:"超賣",c:"#11a86a"}:{l:"中性",c:"#2255cc"};
+const adxZ=v=>v==null?{l:"—",c:"#aab8cc"}:v>=50?{l:"極強趨勢",c:"#5b21b6"}:v>=25?{l:"強趨勢",c:"#7c3aed"}:v>=20?{l:"弱趨勢",c:"#e8a822"}:{l:"無趨勢",c:"#aab8cc"};
+
+function beep(freq=880,dur=0.6){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);o.start();o.stop(ctx.currentTime+dur);}catch{}}
+
+async function sendLine(msg){const r=await fetch(PROXY+"/notify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})});if(!r.ok)throw new Error(r.status);}
+
+async function testLine(){
+  const btn=document.getElementById("line-test-btn");btn.textContent="傳送中…";btn.disabled=true;
+  try{
+    await sendLine("✅ CryptoWatch 連線測試成功！\n警報觸發時會傳訊息到這裡。");
+    btn.textContent="✓ LINE 正常";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#edfaf4;color:#1a7a4a;border:1px solid #a8dfc3";
+    showStatus("✅ LINE 正常！請查看手機。","#1a7a4a","#edfaf4","#a8dfc3");
+  }catch{
+    btn.textContent="✗ 失敗 重試";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fef0f0;color:#cc2233;border:1px solid #f0a0a8";
+    showStatus("⚠ 失敗。Render 首次喚醒需60秒，請稍後重試。","#cc2233","#fef0f0","#f0a0a8");
+  }
+  btn.disabled=false;
+}
+function showStatus(msg,color,bg,border){
+  const s=document.getElementById("status-bar");
+  s.style.display="block";s.style.color=color;s.style.background=bg;s.style.borderColor=border;s.textContent=msg;
+  setTimeout(()=>s.style.display="none",7000);
+}
+
+async function toggleWake(){
+  const btn=document.getElementById("wake-btn");
+  if(wakeActive){await wakeLock?.release();wakeActive=false;btn.innerHTML="💤 防止休眠";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fffae8;color:#8a6200;border:1px solid #f0d980";}
+  else{try{wakeLock=await navigator.wakeLock.request("screen");wakeActive=true;btn.innerHTML='<span class="wake">🟢 常亮中</span>';btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#edfaf4;color:#1a7a4a;border:1px solid #a8dfc3";wakeLock.addEventListener("release",()=>{wakeActive=false;btn.innerHTML="💤 防止休眠";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fffae8;color:#8a6200;border:1px solid #f0d980";});}catch{btn.textContent="不支援";}}
+}
+document.addEventListener("visibilitychange",()=>{if(wakeActive&&!wakeLock)toggleWake();});
+
+function switchTab(t){
+  ["market","coins","alerts","log"].forEach(id=>{document.getElementById("page-"+id).style.display=id===t?"block":"none";document.getElementById("tab-"+id).classList.toggle("active",id===t);});
+  if(t==="coins")renderCoinList();
+  if(t==="alerts")renderAlertFormCoins();
+}
+function setViewTf(tf){viewTf=tf;["1H","4H","1D"].forEach(t=>document.getElementById("tf-"+t).classList.toggle("active",t===tf));document.getElementById("rsi-head").textContent="RSI ("+tf+")";document.getElementById("adx-head").textContent="ADX ("+tf+")";renderMarket();}
+function setFormTf(tf){formTf=tf;["1H","4H","1D"].forEach(t=>document.getElementById("ftf-"+t).classList.toggle("active",t===tf));}
+
+function onCoinSearch(){
+  clearTimeout(searchTimer);
+  const q=document.getElementById("coin-search-input").value.trim();
+  document.getElementById("search-dropdown").style.display="none";
+  if(q.length<1){document.getElementById("search-status").textContent="";return;}
+  searchTimer=setTimeout(()=>searchCoin(),700);
+}
+async function searchCoin(){
+  const q=document.getElementById("coin-search-input").value.trim();
+  if(!q){document.getElementById("search-status").textContent="請輸入幣種代號";return;}
+  if(coins.length>=MAX_COINS){document.getElementById("search-status").textContent="已達上限 "+MAX_COINS+" 個";return;}
+  const btn=document.getElementById("search-btn");btn.innerHTML='<span class="spin">↻</span>';btn.disabled=true;
+  document.getElementById("search-status").textContent="搜尋中…";
+  document.getElementById("search-dropdown").style.display="none";
+  try{
+    const r=await fetch("https://api.coingecko.com/api/v3/search?query="+encodeURIComponent(q));
+    const data=await r.json();
+    searchResults=(data.coins||[]).slice(0,6);
+    if(!searchResults.length){document.getElementById("search-status").textContent="找不到「"+q+"」，請確認代號是否正確";btn.innerHTML="搜尋";btn.disabled=false;return;}
+    const dd=document.getElementById("search-dropdown");
+    dd.innerHTML=searchResults.map((c,i)=>`<div class="search-result" onclick="addCoinFromSearch(${i})"><span style="font-weight:600;color:#1a2233">${(c.symbol||"").toUpperCase()}</span><span style="color:#7a8aaa;margin-left:8px">${c.name}</span><span style="color:#aab8cc;margin-left:8px;font-size:10px">#${c.market_cap_rank||"?"}</span></div>`).join("");
+    dd.style.display="block";
+    document.getElementById("search-status").textContent="找到 "+searchResults.length+" 個結果，請選擇：";
+  }catch{document.getElementById("search-status").textContent="搜尋失敗，請重試";}
+  btn.innerHTML="搜尋";btn.disabled=false;
+}
+function addCoinFromSearch(idx){
+  const c=searchResults[idx];if(!c)return;
+  document.getElementById("search-dropdown").style.display="none";
+  if(coins.find(x=>x.id===c.id)){document.getElementById("search-status").textContent="「"+(c.symbol||"").toUpperCase()+"」已在清單中";return;}
+  if(coins.length>=MAX_COINS){document.getElementById("search-status").textContent="已達上限 "+MAX_COINS+" 個";return;}
+  coins.push({id:c.id,sym:(c.symbol||c.id).toUpperCase(),name:c.name});
+  saveCoins();
+  document.getElementById("coin-search-input").value="";
+  document.getElementById("search-status").innerHTML='<span style="color:#11a86a">✓ 已新增 '+(c.symbol||"").toUpperCase()+' — '+c.name+'</span>';
+  renderCoinList();renderAlertFormCoins();
+  Object.keys(TF).forEach(tf=>fetchOHLC(c.id,tf));
+  fetchPrices();
+}
+function removeCoin(id){
+  if(coins.length<=1){showStatus("至少保留一個幣種","#cc2233","#fef0f0","#f0a0a8");return;}
+  coins=coins.filter(c=>c.id!==id);
+  alerts=alerts.filter(a=>a.coin!==id);
+  saveCoins();saveAlerts();
+  renderCoinList();renderAlertFormCoins();renderAlerts();renderMarket();
+}
+function resetCoins(){
+  if(!confirm("確定要重置為預設幣種？相關警報也會一併刪除。"))return;
+  coins=JSON.parse(JSON.stringify(DEFAULT_COINS));
+  alerts=alerts.filter(a=>coins.find(c=>c.id===a.coin));
+  saveCoins();saveAlerts();renderCoinList();renderAlertFormCoins();renderAlerts();refreshAll();
+}
+function renderCoinList(){
+  document.getElementById("coin-count").textContent="("+coins.length+"/"+MAX_COINS+")";
+  document.getElementById("coin-list").innerHTML=coins.map((c,i)=>`<div class="coin-tag"><div style="width:20px;height:20px;border-radius:50%;background:${COIN_COLORS[i%COIN_COLORS.length]}22;border:1.5px solid ${COIN_COLORS[i%COIN_COLORS.length]}66;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:${COIN_COLORS[i%COIN_COLORS.length]}">${c.sym.slice(0,3)}</div><span>${c.sym}</span><span style="color:#aab8cc;font-size:11px">${c.name}</span><button onclick="removeCoin('${c.id}')" style="cursor:pointer;border:none;background:none;color:#cc2233;font-size:15px;padding:0;line-height:1;margin-left:2px">×</button></div>`).join("")||"<span style='color:#aab8cc;font-size:12px'>尚無幣種</span>";
+}
+function renderAlertFormCoins(){
+  const sel=document.getElementById("form-coin");if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML=coins.map(c=>`<option value="${c.id}">${c.sym} — ${c.name}</option>`).join("");
+  if(coins.find(c=>c.id===cur))sel.value=cur;
+}
+
+function renderMarket(){
+  document.getElementById("market-rows").innerHTML=coins.map((coin,idx)=>{
+    const p=prices[coin.id],key=coin.id+"_"+viewTf,rsi=rsiCache[key],adxD=adxCache[key];
+    const rz=rsiZ(rsi),az=adxZ(adxD?.adx),up=p?.usd_24h_change>=0;
+    const color=COIN_COLORS[idx%COIN_COLORS.length];
+    const rsiHTML=rsi!=null?`<div class="gauge-wrap"><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;font-size:14px;color:${rz.c};min-width:38px">${rsi}</span><span style="font-size:10px;color:#fff;background:${rz.c};padding:2px 8px;border-radius:10px;white-space:nowrap;font-weight:500">${rz.l}</span></div><div class="gauge-bar-bg"><div class="gauge-bar-fill" style="width:${Math.min(100,rsi)}%;background:${rz.c}"></div></div></div>`:"<span style='color:#aab8cc;font-size:11px'>計算中…</span>";
+    let adxHTML="<span style='color:#aab8cc;font-size:11px'>計算中…</span>";
+    if(adxD){const bull=adxD.plusDI>adxD.minusDI;adxHTML=`<div class="gauge-wrap"><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;font-size:14px;color:${az.c};min-width:38px">${adxD.adx}</span><span style="font-size:10px;color:#fff;background:${az.c};padding:2px 8px;border-radius:10px;white-space:nowrap;font-weight:500">${az.l}</span></div><div class="gauge-bar-bg"><div class="gauge-bar-fill" style="width:${Math.min(100,adxD.adx/80*100)}%;background:${az.c}"></div></div><div class="di-wrap"><span class="di-badge" style="background:${bull?"#edfaf4":"#fef0f0"};color:${bull?"#1a7a4a":"#cc2233"}">+DI ${adxD.plusDI.toFixed(1)}</span><span class="di-badge" style="background:${!bull?"#fef0f0":"#fff5e8"};color:${!bull?"#cc2233":"#e87722"}">−DI ${adxD.minusDI.toFixed(1)}</span><span class="di-badge" style="background:#edf0f7;color:#4a5a7a">${bull?"↑ 多方":"↓ 空方"}</span></div></div>`;}
+    return`<div class="market-grid rh"><div style="display:flex;align-items:center;gap:9px"><div style="width:32px;height:32px;border-radius:50%;background:${color}18;border:1.5px solid ${color}55;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:${color};flex-shrink:0">${coin.sym.slice(0,4)}</div><div><div style="color:#1a2233;font-weight:600;font-size:13px">${coin.sym}</div><div style="font-size:10px;color:#aab8cc">${coin.name}</div></div></div><div style="text-align:right;font-weight:700;color:#1a2233;font-size:14px">${p?fp(p.usd):"<span class='blink' style='color:#dde3ee'>—</span>"}</div><div style="text-align:right;font-size:12px;font-weight:600;color:${p?(up?"#11a86a":"#e8445a"):"#dde3ee"}">${p?fpct(p.usd_24h_change):"—"}</div><div style="padding-left:8px">${rsiHTML}</div><div style="padding-left:8px">${adxHTML}</div><div style="text-align:right;font-size:11px;color:#7a8aaa">${p?fvol(p.usd_24h_vol):"—"}</div><div style="text-align:center"><button onclick="removeCoin('${coin.id}')" style="cursor:pointer;border:none;background:none;color:#dde3ee;font-size:18px;padding:0;line-height:1;transition:color .15s" onmouseover="this.style.color='#e8445a'" onmouseout="this.style.color='#dde3ee'">×</button></div></div>`;
+  }).join("")||"<div style='padding:40px;text-align:center;color:#aab8cc'>尚無追蹤幣種，請到「幣種管理」新增</div>";
+}
+
+function toggleForm(){
+  formVisible=!formVisible;
+  document.getElementById("alert-form").style.display=formVisible?"block":"none";
+  const btn=document.getElementById("add-btn");btn.textContent=formVisible?"✕ 收起":"+ 新增警報";btn.style.background=formVisible?"#edf0f7":"linear-gradient(90deg,#2255cc,#3a70ee)";btn.style.color=formVisible?"#4a5a7a":"#fff";
+  if(formVisible)updateFormHint();
+}
+function updateFormHint(){
+  const t=document.getElementById("form-type").value;
+  document.getElementById("tf-row").style.display=(t.startsWith("rsi")||t.startsWith("adx"))?"block":"none";
+  const hints={rsi_above:"RSI > 70 = 超買訊號，價格可能面臨回調壓力。",rsi_below:"RSI < 30 = 超賣訊號，可能出現技術性反彈。",adx_above:"ADX > 25 = 出現明顯趨勢，搭配 +DI/-DI 判斷多空方向。",adx_below:"ADX < 20 = 市場盤整中，無明顯方向性。"};
+  const placeholders={rsi_above:"RSI 值（超買通常 70）",rsi_below:"RSI 值（超賣通常 30）",adx_above:"ADX 值（趨勢通常 25）",adx_below:"ADX 值（盤整通常 20）",price_above:"價格，例如 100000",price_below:"價格，例如 80000",price_change_up:"百分比，例如 5",price_change_down:"百分比，例如 5"};
+  document.getElementById("form-hint").textContent=hints[t]||"";
+  document.getElementById("form-value").placeholder=placeholders[t]||"數值";
+}
+function addAlert(){
+  const coin=document.getElementById("form-coin").value,type=document.getElementById("form-type").value,val=document.getElementById("form-value").value;
+  if(!val||isNaN(parseFloat(val)))return;
+  const isInd=type.startsWith("rsi")||type.startsWith("adx");
+  alerts.push({id:Date.now(),coin,type,value:val,tf:isInd?formTf:null,fired:false});
+  saveAlerts();renderAlerts();toggleForm();
+}
+function removeAlert(id){firedIds.delete(id);alerts=alerts.filter(a=>a.id!==id);saveAlerts();renderAlerts();}
+function resetAlert(id){firedIds.delete(id);alerts=alerts.map(a=>a.id===id?{...a,fired:false}:a);saveAlerts();renderAlerts();}
+function renderAlerts(){
+  const active=alerts.filter(a=>!a.fired).length;
+  document.getElementById("alert-count").textContent="監控中 "+active+" / "+alerts.length;
+  const b=document.getElementById("alert-badge");b.textContent=active;b.style.display=active>0?"inline":"none";
+  if(!alerts.length){document.getElementById("alert-list").innerHTML="<div style='text-align:center;color:#aab8cc;padding:48px 0;line-height:2.5'>尚無警報<br><span style='font-size:11px'>點擊「新增警報」開始監控</span></div>";return;}
+  document.getElementById("alert-list").innerHTML=alerts.map(al=>{
+    const ci=coins.find(c=>c.id===al.coin)||{sym:al.coin,name:""};
+    const ti=AT.find(t=>t.id===al.type)||{label:al.type,unit:"",color:"#2255cc"};
+    const key=al.coin+"_"+(al.tf||"1D");
+    let curV=al.type.startsWith("rsi")?rsiCache[key]:al.type.startsWith("adx")?adxCache[key]?.adx:prices[al.coin]?.usd;
+    const curTxt=curV!=null?(al.type.startsWith("price")?fp(curV):curV):"計算中…";
+    const tfB=al.tf?`<span style="font-size:10px;color:#2255cc;background:#eef2ff;border:1px solid #c0ccee;padding:1px 8px;border-radius:10px">${al.tf}</span>`:"";
+    const firedB=al.fired?`<span style="font-size:10px;background:#fef0f0;color:#cc2233;padding:1px 8px;border-radius:10px;border:1px solid #f0c0c4">✓ 已觸發</span>`:"";
+    const resetB=al.fired?`<button class="btn" onclick="resetAlert(${al.id})" style="background:#eef2ff;color:#2255cc;border:1px solid #c0ccee;padding:5px 12px">重設</button>`:"";
+    return`<div class="alert-row fadein" style="border-left:3px solid ${al.fired?"#e8445a":ti.color};background:${al.fired?"#fef8f8":"#fff"}"><div style="flex:1"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="color:#1a2233;font-weight:600;font-size:14px">${ci.sym}</span><span style="font-size:11px;color:#7a8aaa">${ti.label}</span><span style="color:${ti.color};font-weight:700;font-size:14px">${al.value}${ti.unit}</span>${tfB}${firedB}</div><div style="font-size:11px;color:#7a8aaa;margin-top:4px">目前值：<strong style="color:#1a2233">${curTxt}</strong></div></div><div style="display:flex;gap:6px;flex-shrink:0">${resetB}<button class="btn" onclick="removeAlert(${al.id})" style="background:#fef0f0;color:#e8445a;border:1px solid #f0c0c4;padding:5px 12px">✕</button></div></div>`;
+  }).join("");
+}
+
+function clearLog(){log=[];saveLog();renderLog();}
+function renderLog(){
+  const b=document.getElementById("log-badge");b.textContent=log.length;b.style.display=log.length>0?"inline":"none";
+  document.getElementById("log-count").textContent="觸發記錄（"+log.length+" 筆）";
+  if(!log.length){document.getElementById("log-list").innerHTML="<div style='text-align:center;color:#aab8cc;padding:48px 0'>尚無觸發記錄</div>";return;}
+  document.getElementById("log-list").innerHTML=log.map(e=>`<div class="log-row fadein" style="border-left:3px solid ${e.color}"><div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="color:#1a2233;font-weight:700">${e.sym}</span><span style="font-size:11px;color:#7a8aaa">${e.label}</span><span style="color:${e.color};font-weight:700">${e.value}${e.unit}</span>${e.tf?`<span style="font-size:10px;color:#2255cc;background:#eef2ff;padding:1px 8px;border-radius:10px">${e.tf}</span>`:""}</div><div style="font-size:11px;color:#7a8aaa">觸發值：<strong style="color:#1a2233">${e.curVal}</strong></div></div><span style="font-size:10px;color:#aab8cc;white-space:nowrap;margin-top:2px">${e.time}</span></div>`).join("");
+}
+
+function checkAlerts(){
+  if(!Object.keys(prices).length)return;
+  let changed=false;
+  alerts.forEach(al=>{
+    if(firedIds.has(al.id))return;
+    const p=prices[al.coin],key=al.coin+"_"+(al.tf||"1D"),rsi=rsiCache[key],adxD=adxCache[key];
+    if(!p)return;
+    const val=parseFloat(al.value);
+    let hit=false,curVal=null;
+    if(al.type==="price_above"&&p.usd>=val){hit=true;curVal=fp(p.usd);}
+    if(al.type==="price_below"&&p.usd<=val){hit=true;curVal=fp(p.usd);}
+    if(al.type==="price_change_up"&&p.usd_24h_change>=val){hit=true;curVal=fpct(p.usd_24h_change);}
+    if(al.type==="price_change_down"&&p.usd_24h_change<=-val){hit=true;curVal=fpct(p.usd_24h_change);}
+    if(al.type==="rsi_above"&&rsi!=null&&rsi>=val){hit=true;curVal=rsi;}
+    if(al.type==="rsi_below"&&rsi!=null&&rsi<=val){hit=true;curVal=rsi;}
+    if(al.type==="adx_above"&&adxD!=null&&adxD.adx>=val){hit=true;curVal=adxD.adx;}
+    if(al.type==="adx_below"&&adxD!=null&&adxD.adx<=val){hit=true;curVal=adxD.adx;}
+    if(!hit)return;
+    firedIds.add(al.id);al.fired=true;changed=true;
+    const ci=coins.find(c=>c.id===al.coin)||{sym:al.coin};
+    const ti=AT.find(t=>t.id===al.type)||{label:al.type,unit:"",color:"#2255cc"};
+    const tfLabel=al.tf?"（"+al.tf+" K線）":"";
+    const msg="🔔 加密貨幣警報觸發！\n幣種："+ci.sym+"\n條件："+ti.label+" "+al.value+ti.unit+tfLabel+"\n目前值："+curVal+"\n時間："+new Date().toLocaleString("zh-TW",{timeZone:"Asia/Taipei"});
+    log.unshift({id:Date.now(),sym:ci.sym,label:ti.label,value:al.value,unit:ti.unit,tf:al.tf,curVal,time:new Date().toLocaleTimeString("zh-TW"),color:ti.color});
+    if(log.length>30)log=log.slice(0,30);
+    beep(al.type.includes("below")?660:920,0.7);
+    sendLine(msg).catch(()=>{});
+  });
+  if(changed){saveAlerts();saveLog();renderAlerts();renderLog();}
+}
+
+async function fetchPrices(){
+  try{
+    const ids=coins.map(c=>c.id).join(",");if(!ids)return;
+    const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids="+ids+"&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true");
+    prices=await r.json();
+    document.getElementById("sync-badge").textContent=new Date().toLocaleTimeString("zh-TW")+" 更新";
+    renderMarket();checkAlerts();renderAlerts();
+  }catch(){document.getElementById("sync-badge").innerHTML="<span class='blink'>更新失敗</span>";}
+}
+const loadingTf=new Set();
+async function fetchOHLC(coinId,tf){
+  const key=coinId+"_"+tf;if(loadingTf.has(key))return;loadingTf.add(key);
+  try{
+    const r=await fetch("https://api.coingecko.com/api/v3/coins/"+coinId+"/ohlc?vs_currency=usd&days="+TF[tf].days);
+    const data=await r.json();
+    if(!Array.isArray(data)||data.length<30)return;
+    rsiCache[key]=calcRSI(data.map(d=>d[4]),14);
+    const adx=calcADX(data,14);if(adx)adxCache[key]=adx;
+    renderMarket();checkAlerts();renderAlerts();
+  }catch{}
+  loadingTf.delete(key);
+}
+function refreshAll(){fetchPrices();coins.forEach(c=>Object.keys(TF).forEach(tf=>fetchOHLC(c.id,tf)));}
+
+renderCoinList();renderAlertFormCoins();renderAlerts();renderLog();updateFormHint();
+refreshAll();
+setInterval(fetchPrices,30000);
+setInterval(()=>coins.forEach(c=>fetchOHLC(c.id,"1H")),TF["1H"].ms);
+setInterval(()=>coins.forEach(c=>fetchOHLC(c.id,"4H")),TF["4H"].ms);
+setInterval(()=>coins.forEach(c=>fetchOHLC(c.id,"1D")),TF["1D"].ms);
+document.addEventListener("click",e=>{if(!e.target.closest("#coin-search-input")&&!e.target.closest("#search-dropdown"))document.getElementById("search-dropdown").style.display="none";});
+</script>
+</body>
+</html>
