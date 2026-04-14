@@ -448,11 +448,20 @@ async function fetchOHLC(coinId,tf){
 function refreshAll(){fetchPrices();coins.forEach(function(c){Object.keys(TF).forEach(function(tf){fetchOHLC(c.id,tf);});});}
 
 renderCoinList();renderAlertFormCoins();renderAlerts();renderLog();updateFormHint();
-refreshAll();
-setInterval(fetchPrices,30000);
-setInterval(function(){coins.forEach(function(c){fetchOHLC(c.id,"1H");});},TF["1H"].ms);
-setInterval(function(){coins.forEach(function(c){fetchOHLC(c.id,"4H");});},TF["4H"].ms);
-setInterval(function(){coins.forEach(function(c){fetchOHLC(c.id,"1D");});},TF["1D"].ms);
+// 初始載入：先抓價格，再錯開時間逐一抓 OHLC
+fetchPrices();
+coins.forEach(function(c,i){
+  setTimeout(function(){
+    fetchOHLC(c.id,"1H");
+    setTimeout(function(){fetchOHLC(c.id,"4H");},1500);
+    setTimeout(function(){fetchOHLC(c.id,"1D");},3000);
+  }, i * 10000);
+});
+// 定期更新：價格每60秒，指標每5/10/15分鐘
+setInterval(fetchPrices, 60000);
+setInterval(function(){coins.forEach(function(c,i){setTimeout(function(){fetchOHLC(c.id,"1H");},i*10000);});}, 5*60000);
+setInterval(function(){coins.forEach(function(c,i){setTimeout(function(){fetchOHLC(c.id,"4H");},i*10000);});}, 10*60000);
+setInterval(function(){coins.forEach(function(c,i){setTimeout(function(){fetchOHLC(c.id,"1D");},i*10000);});}, 15*60000);
 document.addEventListener("click",function(e){if(!e.target.closest("#coin-search-input")&&!e.target.closest("#search-dropdown"))document.getElementById("search-dropdown").style.display="none";});
 </script>
 </body>
