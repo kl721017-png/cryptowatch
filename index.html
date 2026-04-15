@@ -71,6 +71,8 @@ header{background:#fff;border-bottom:1px solid #dde3ee;padding:14px 24px;display
   <button class="tab-btn" id="tab-alerts" onclick="switchTab('alerts')">警報設定 <span class="badge" id="alert-badge" style="display:none">0</span></button>
   <button class="tab-btn" id="tab-log" onclick="switchTab('log')">觸發記錄 <span class="badge" id="log-badge" style="display:none">0</span></button>
 </div>
+
+<!-- MARKET -->
 <div id="page-market" class="content">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px">
     <div style="display:flex;align-items:center;gap:10px">
@@ -97,8 +99,10 @@ header{background:#fff;border-bottom:1px solid #dde3ee;padding:14px 24px;display
     </div>
     <div id="market-rows"><div style="padding:40px;text-align:center;color:#aab8cc">載入中，請稍候…</div></div>
   </div>
-  <div style="font-size:10px;color:#aab8cc;margin-top:10px;text-align:right">CoinGecko API · 價格每30秒 · 1H每1分鐘 · 4H每4分鐘 · 日線每10分鐘</div>
+  <div style="font-size:10px;color:#aab8cc;margin-top:10px;text-align:right">資料來源：Binance API · 價格每30秒 · 指標每5分鐘更新</div>
 </div>
+
+<!-- COINS -->
 <div id="page-coins" class="content" style="display:none;max-width:680px">
   <div style="font-size:11px;color:#7a8aaa;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px">幣種管理（最多 20 個）</div>
   <div class="card" style="padding:20px;margin-bottom:20px">
@@ -121,6 +125,8 @@ header{background:#fff;border-bottom:1px solid #dde3ee;padding:14px 24px;display
   </div>
   <div style="font-size:11px;color:#aab8cc;margin-top:12px;line-height:1.8">💡 輸入幣種代號後點搜尋，從結果中選擇即可加入。幣種和警報資料存在瀏覽器，重新整理後不會消失。</div>
 </div>
+
+<!-- ALERTS -->
 <div id="page-alerts" class="content" style="display:none;max-width:700px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <span style="font-size:11px;color:#7a8aaa;text-transform:uppercase;letter-spacing:1px" id="alert-count">監控中 0 / 0</span>
@@ -157,6 +163,8 @@ header{background:#fff;border-bottom:1px solid #dde3ee;padding:14px 24px;display
   </div>
   <div id="alert-list"></div>
 </div>
+
+<!-- LOG -->
 <div id="page-log" class="content" style="display:none;max-width:700px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <span style="font-size:11px;color:#7a8aaa;text-transform:uppercase;letter-spacing:1px" id="log-count">觸發記錄（0 筆）</span>
@@ -164,71 +172,84 @@ header{background:#fff;border-bottom:1px solid #dde3ee;padding:14px 24px;display
   </div>
   <div id="log-list"><div style="text-align:center;color:#aab8cc;padding:48px 0">尚無觸發記錄</div></div>
 </div>
+
 <script>
-const PROXY="https://line-proxy-c1em.onrender.com";
-const MAX_COINS=20;
-const DEFAULT_COINS=[
-  {id:"bitcoin",sym:"BTC",name:"Bitcoin"},
-  {id:"ethereum",sym:"ETH",name:"Ethereum"},
-  {id:"solana",sym:"SOL",name:"Solana"},
-  {id:"binancecoin",sym:"BNB",name:"BNB"},
-  {id:"ripple",sym:"XRP",name:"XRP"},
-];
-const COIN_COLORS=["#f7931a","#627eea","#9945ff","#f3ba2f","#00aae4","#2775ca","#e84142","#e84393","#16c784","#0033ad","#ff0420","#26a17b","#c2a633","#6b8cff","#f09242","#1652f0","#00d4aa","#ff6b35","#7b61ff","#4CAF50"];
-const TF={"1H":{days:2,ms:60000},"4H":{days:14,ms:240000},"1D":{days:60,ms:600000}};
-const AT=[
-  {id:"price_above",label:"價格高於",unit:"$",color:"#11a86a"},
-  {id:"price_below",label:"價格低於",unit:"$",color:"#e8445a"},
-  {id:"price_change_up",label:"24h漲幅≥",unit:"%",color:"#2255cc"},
-  {id:"price_change_down",label:"24h跌幅≥",unit:"%",color:"#e87722"},
-  {id:"rsi_above",label:"RSI高於",unit:"",color:"#e8445a"},
-  {id:"rsi_below",label:"RSI低於",unit:"",color:"#11a86a"},
-  {id:"adx_above",label:"ADX高於",unit:"",color:"#7c3aed"},
-  {id:"adx_below",label:"ADX低於",unit:"",color:"#e8a822"},
-];
-let coins=loadCoins(),prices={},rsiCache={},adxCache={};
-let viewTf="1H",formTf="1H";
-let alerts=loadAlerts(),log=loadLog();
-let firedIds=new Set(alerts.filter(a=>a.fired).map(a=>a.id));
-let wakeActive=false,wakeLock=null,formVisible=false,searchTimer=null,searchResults=[];
+var PROXY = "https://line-proxy-c1em.onrender.com";
+var MAX_COINS = 20;
 
-function loadCoins(){try{const s=localStorage.getItem("cw_coins");return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_COINS));}catch(e){return JSON.parse(JSON.stringify(DEFAULT_COINS));}}
-function saveCoins(){try{localStorage.setItem("cw_coins",JSON.stringify(coins));}catch(e){}}
-function loadAlerts(){try{const s=localStorage.getItem("cw_alerts");return s?JSON.parse(s):[];}catch(e){return[];}}
-function saveAlerts(){try{localStorage.setItem("cw_alerts",JSON.stringify(alerts));}catch(e){}}
-function loadLog(){try{const s=localStorage.getItem("cw_log");return s?JSON.parse(s):[];}catch(e){return[];}}
-function saveLog(){try{localStorage.setItem("cw_log",JSON.stringify(log));}catch(e){}}
+// 幣種定義：Binance 交易對
+var DEFAULT_COINS = [
+  {sym:"BTC", name:"Bitcoin",  pair:"BTCUSDT"},
+  {sym:"ETH", name:"Ethereum", pair:"ETHUSDT"},
+  {sym:"SOL", name:"Solana",   pair:"SOLUSDT"},
+  {sym:"BNB", name:"BNB",      pair:"BNBUSDT"},
+  {sym:"XRP", name:"XRP",      pair:"XRPUSDT"},
+];
+var COIN_COLORS = ["#f7931a","#627eea","#9945ff","#f3ba2f","#00aae4","#2775ca","#e84142","#e84393","#16c784","#0033ad","#ff0420","#26a17b","#c2a633","#6b8cff","#f09242","#1652f0","#00d4aa","#ff6b35","#7b61ff","#4CAF50"];
 
-function calcRSI(c,p){
-  p=p||14;
-  if(c.length<p+1)return null;
-  var ag=0,al=0,d,i;
-  for(i=1;i<=p;i++){d=c[i]-c[i-1];if(d>=0)ag+=d;else al-=d;}
-  ag/=p;al/=p;
-  for(i=p+1;i<c.length;i++){d=c[i]-c[i-1];ag=(ag*(p-1)+Math.max(d,0))/p;al=(al*(p-1)+Math.max(-d,0))/p;}
-  if(al===0)return 100;
+// K線週期對應 Binance interval
+var TF_INTERVAL = {"1H":"1h","4H":"4h","1D":"1d"};
+var TF_LIMIT    = {"1H":100,"4H":100,"1D":100};
+
+var AT = [
+  {id:"price_above",  label:"價格高於",  unit:"$", color:"#11a86a"},
+  {id:"price_below",  label:"價格低於",  unit:"$", color:"#e8445a"},
+  {id:"price_change_up",  label:"24h漲幅≥", unit:"%", color:"#2255cc"},
+  {id:"price_change_down",label:"24h跌幅≥", unit:"%", color:"#e87722"},
+  {id:"rsi_above", label:"RSI高於", unit:"", color:"#e8445a"},
+  {id:"rsi_below", label:"RSI低於", unit:"", color:"#11a86a"},
+  {id:"adx_above", label:"ADX高於", unit:"", color:"#7c3aed"},
+  {id:"adx_below", label:"ADX低於", unit:"", color:"#e8a822"},
+];
+
+var coins   = loadCoins();
+var prices  = {};  // keyed by pair e.g. "BTCUSDT"
+var rsiCache = {}; // keyed by "pair_TF"
+var adxCache = {}; // keyed by "pair_TF"
+var viewTf = "1H", formTf = "1H";
+var alerts = loadAlerts(), log = loadLog();
+var firedIds = new Set(alerts.filter(function(a){return a.fired;}).map(function(a){return a.id;}));
+var wakeActive=false, wakeLock=null, formVisible=false, searchTimer=null, searchResults=[];
+
+function loadCoins(){try{var s=localStorage.getItem("cw_coins2");return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_COINS));}catch(e){return JSON.parse(JSON.stringify(DEFAULT_COINS));}}
+function saveCoins(){try{localStorage.setItem("cw_coins2",JSON.stringify(coins));}catch(e){}}
+function loadAlerts(){try{var s=localStorage.getItem("cw_alerts2");return s?JSON.parse(s):[];}catch(e){return[];}}
+function saveAlerts(){try{localStorage.setItem("cw_alerts2",JSON.stringify(alerts));}catch(e){}}
+function loadLog(){try{var s=localStorage.getItem("cw_log2");return s?JSON.parse(s):[];}catch(e){return[];}}
+function saveLog(){try{localStorage.setItem("cw_log2",JSON.stringify(log));}catch(e){}}
+
+// ── 指標計算 ──────────────────────────────────────────────────────────────
+function calcRSI(closes, p) {
+  p = p || 14;
+  if (closes.length < p+1) return null;
+  var ag=0, al=0, d, i;
+  for (i=1; i<=p; i++) { d=closes[i]-closes[i-1]; if(d>=0) ag+=d; else al-=d; }
+  ag/=p; al/=p;
+  for (i=p+1; i<closes.length; i++) { d=closes[i]-closes[i-1]; ag=(ag*(p-1)+Math.max(d,0))/p; al=(al*(p-1)+Math.max(-d,0))/p; }
+  if (al===0) return 100;
   return parseFloat((100-100/(1+ag/al)).toFixed(2));
 }
-function calcADX(ohlc,p){
-  p=p||14;
-  if(ohlc.length<p*2+1)return null;
+function calcADX(ohlc, p) {
+  p = p || 14;
+  // ohlc: [[o,h,l,c], ...]
+  if (ohlc.length < p*2+1) return null;
   var trs=[],pDMs=[],mDMs=[],i,h,l,ph,pl,pc,up,dn;
-  for(i=1;i<ohlc.length;i++){
-    h=ohlc[i][2];l=ohlc[i][3];
-    ph=ohlc[i-1][2];pl=ohlc[i-1][3];pc=ohlc[i-1][4];
-    trs.push(Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc)));
-    up=h-ph;dn=pl-l;
+  for (i=1; i<ohlc.length; i++) {
+    h=ohlc[i][1]; l=ohlc[i][2]; pc=ohlc[i-1][3]; ph=ohlc[i-1][1]; pl=ohlc[i-1][2];
+    trs.push(Math.max(h-l, Math.abs(h-pc), Math.abs(l-pc)));
+    up=h-ph; dn=pl-l;
     pDMs.push(up>dn&&up>0?up:0);
     mDMs.push(dn>up&&dn>0?dn:0);
   }
   function w(a,p){var s=0,r=[],i;for(i=0;i<p;i++)s+=a[i];r.push(s);for(i=p;i<a.length;i++){s=s-s/p+a[i];r.push(s);}return r;}
   var sT=w(trs,p),sP=w(pDMs,p),sM=w(mDMs,p);
   var dx=sT.map(function(t,i){if(t===0)return 0;var pd=sP[i]/t*100,md=sM[i]/t*100;return Math.abs(pd-md)/(pd+md)*100;});
-  var adxVal=0;for(i=dx.length-p;i<dx.length;i++)adxVal+=dx[i];adxVal=parseFloat((adxVal/p).toFixed(2));
+  var adxVal=0; for(i=dx.length-p;i<dx.length;i++) adxVal+=dx[i]; adxVal=parseFloat((adxVal/p).toFixed(2));
   var last=sT.length-1;
-  return{adx:adxVal,plusDI:parseFloat((sP[last]/sT[last]*100).toFixed(2)),minusDI:parseFloat((sM[last]/sT[last]*100).toFixed(2))};
+  return {adx:adxVal, plusDI:parseFloat((sP[last]/sT[last]*100).toFixed(2)), minusDI:parseFloat((sM[last]/sT[last]*100).toFixed(2))};
 }
 
+// ── 格式化 ────────────────────────────────────────────────────────────────
 function fp(n){if(n==null)return"—";if(n>=1000)return"$"+n.toLocaleString("en-US",{maximumFractionDigits:2});if(n>=1)return"$"+n.toFixed(4);return"$"+n.toFixed(6);}
 function fpct(n){if(n==null)return"—";return(n>=0?"+":"")+n.toFixed(2)+"%";}
 function fvol(n){if(n==null)return"—";if(n>=1e9)return"$"+(n/1e9).toFixed(2)+"B";if(n>=1e6)return"$"+(n/1e6).toFixed(2)+"M";return"$"+n.toLocaleString();}
@@ -237,42 +258,26 @@ function adxZ(v){if(v==null)return{l:"—",c:"#aab8cc"};if(v>=50)return{l:"極�
 
 function beep(freq,dur){freq=freq||880;dur=dur||0.6;try{var ctx=new(window.AudioContext||window.webkitAudioContext)();var o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);o.start();o.stop(ctx.currentTime+dur);}catch(e){}}
 
-async function sendLine(msg){
-  var r=await fetch(PROXY+"/notify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})});
-  if(!r.ok)throw new Error(r.status);
-}
+// ── LINE ──────────────────────────────────────────────────────────────────
+async function sendLine(msg){var r=await fetch(PROXY+"/notify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})});if(!r.ok)throw new Error(r.status);}
 async function testLine(){
   var btn=document.getElementById("line-test-btn");btn.textContent="傳送中…";btn.disabled=true;
-  try{
-    await sendLine("✅ CryptoWatch 連線測試成功！\n警報觸發時會傳訊息到這裡。");
-    btn.textContent="✓ LINE 正常";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#edfaf4;color:#1a7a4a;border:1px solid #a8dfc3";
-    showStatus("✅ LINE 正常！請查看手機。","#1a7a4a","#edfaf4","#a8dfc3");
-  }catch(e){
-    btn.textContent="✗ 失敗 重試";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fef0f0;color:#cc2233;border:1px solid #f0a0a8";
-    showStatus("⚠ 失敗。Render 首次喚醒需60秒，請稍後重試。","#cc2233","#fef0f0","#f0a0a8");
-  }
+  try{await sendLine("✅ CryptoWatch 測試成功！警報觸發時會傳訊息到這裡。");btn.textContent="✓ LINE 正常";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#edfaf4;color:#1a7a4a;border:1px solid #a8dfc3";showStatus("✅ LINE 正常！請查看手機。","#1a7a4a","#edfaf4","#a8dfc3");}
+  catch(e){btn.textContent="✗ 失敗 重試";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fef0f0;color:#cc2233;border:1px solid #f0a0a8";showStatus("⚠ 失敗，請稍後重試（Render 喚醒需60秒）。","#cc2233","#fef0f0","#f0a0a8");}
   btn.disabled=false;
 }
-function showStatus(msg,color,bg,border){
-  var s=document.getElementById("status-bar");
-  s.style.display="block";s.style.color=color;s.style.background=bg;s.style.borderColor=border;s.textContent=msg;
-  setTimeout(function(){s.style.display="none";},7000);
-}
-async function toggleWake(){
-  var btn=document.getElementById("wake-btn");
-  if(wakeActive){await wakeLock.release();wakeActive=false;btn.innerHTML="💤 防止休眠";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fffae8;color:#8a6200;border:1px solid #f0d980";}
-  else{try{wakeLock=await navigator.wakeLock.request("screen");wakeActive=true;btn.innerHTML='<span class="wake">🟢 常亮中</span>';btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#edfaf4;color:#1a7a4a;border:1px solid #a8dfc3";wakeLock.addEventListener("release",function(){wakeActive=false;btn.innerHTML="💤 防止休眠";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fffae8;color:#8a6200;border:1px solid #f0d980";});}catch(e){btn.textContent="不支援";}}
-}
+function showStatus(msg,color,bg,border){var s=document.getElementById("status-bar");s.style.display="block";s.style.color=color;s.style.background=bg;s.style.borderColor=border;s.textContent=msg;setTimeout(function(){s.style.display="none";},7000);}
+
+// ── Wake Lock ─────────────────────────────────────────────────────────────
+async function toggleWake(){var btn=document.getElementById("wake-btn");if(wakeActive){await wakeLock.release();wakeActive=false;btn.innerHTML="💤 防止休眠";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fffae8;color:#8a6200;border:1px solid #f0d980";}else{try{wakeLock=await navigator.wakeLock.request("screen");wakeActive=true;btn.innerHTML='<span class="wake">🟢 常亮中</span>';btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#edfaf4;color:#1a7a4a;border:1px solid #a8dfc3";wakeLock.addEventListener("release",function(){wakeActive=false;btn.innerHTML="💤 防止休眠";btn.style.cssText="font-size:11px;padding:6px 14px;border-radius:20px;background:#fffae8;color:#8a6200;border:1px solid #f0d980";});}catch(e){btn.textContent="不支援";}}}
 document.addEventListener("visibilitychange",function(){if(wakeActive&&!wakeLock)toggleWake();});
 
-function switchTab(t){
-  ["market","coins","alerts","log"].forEach(function(id){document.getElementById("page-"+id).style.display=id===t?"block":"none";document.getElementById("tab-"+id).classList.toggle("active",id===t);});
-  if(t==="coins")renderCoinList();
-  if(t==="alerts")renderAlertFormCoins();
-}
+// ── Tabs ──────────────────────────────────────────────────────────────────
+function switchTab(t){["market","coins","alerts","log"].forEach(function(id){document.getElementById("page-"+id).style.display=id===t?"block":"none";document.getElementById("tab-"+id).classList.toggle("active",id===t);});if(t==="coins")renderCoinList();if(t==="alerts")renderAlertFormCoins();}
 function setViewTf(tf){viewTf=tf;["1H","4H","1D"].forEach(function(t){document.getElementById("tf-"+t).classList.toggle("active",t===tf);});document.getElementById("rsi-head").textContent="RSI ("+tf+")";document.getElementById("adx-head").textContent="ADX ("+tf+")";renderMarket();}
 function setFormTf(tf){formTf=tf;["1H","4H","1D"].forEach(function(t){document.getElementById("ftf-"+t).classList.toggle("active",t===tf);});}
 
+// ── 幣種管理 ──────────────────────────────────────────────────────────────
 function onCoinSearch(){clearTimeout(searchTimer);var q=document.getElementById("coin-search-input").value.trim();document.getElementById("search-dropdown").style.display="none";if(q.length<1){document.getElementById("search-status").textContent="";return;}searchTimer=setTimeout(function(){searchCoin();},700);}
 async function searchCoin(){
   var q=document.getElementById("coin-search-input").value.trim();
@@ -280,12 +285,11 @@ async function searchCoin(){
   if(coins.length>=MAX_COINS){document.getElementById("search-status").textContent="已達上限 "+MAX_COINS+" 個";return;}
   var btn=document.getElementById("search-btn");btn.innerHTML='<span class="spin">↻</span>';btn.disabled=true;
   document.getElementById("search-status").textContent="搜尋中…";
-  document.getElementById("search-dropdown").style.display="none";
   try{
     var r=await fetch(PROXY+"/search?query="+encodeURIComponent(q));
     var data=await r.json();
-    searchResults=(data.coins||[]).slice(0,6);
-    if(!searchResults.length){document.getElementById("search-status").textContent="找不到「"+q+"」，請確認代號";btn.innerHTML="搜尋";btn.disabled=false;return;}
+    searchResults=(data.coins||[]).filter(function(c){return c.symbol;}).slice(0,6);
+    if(!searchResults.length){document.getElementById("search-status").textContent="找不到「"+q+"」";btn.innerHTML="搜尋";btn.disabled=false;return;}
     var dd=document.getElementById("search-dropdown");
     dd.innerHTML=searchResults.map(function(c,i){return'<div class="search-result" onclick="addCoinFromSearch('+i+')"><span style="font-weight:600;color:#1a2233">'+(c.symbol||"").toUpperCase()+'</span><span style="color:#7a8aaa;margin-left:8px">'+c.name+'</span><span style="color:#aab8cc;margin-left:8px;font-size:10px">#'+(c.market_cap_rank||"?")+'</span></div>';}).join("");
     dd.style.display="block";
@@ -296,73 +300,84 @@ async function searchCoin(){
 function addCoinFromSearch(idx){
   var c=searchResults[idx];if(!c)return;
   document.getElementById("search-dropdown").style.display="none";
-  if(coins.find(function(x){return x.id===c.id;})){document.getElementById("search-status").textContent="「"+(c.symbol||"").toUpperCase()+"」已在清單中";return;}
+  var sym=(c.symbol||"").toUpperCase();
+  var pair=sym+"USDT";
+  if(coins.find(function(x){return x.pair===pair;})){document.getElementById("search-status").textContent="「"+sym+"」已在清單中";return;}
   if(coins.length>=MAX_COINS){document.getElementById("search-status").textContent="已達上限 "+MAX_COINS+" 個";return;}
-  coins.push({id:c.id,sym:(c.symbol||c.id).toUpperCase(),name:c.name});
+  coins.push({sym:sym,name:c.name,pair:pair});
   saveCoins();
   document.getElementById("coin-search-input").value="";
-  document.getElementById("search-status").innerHTML='<span style="color:#11a86a">✓ 已新增 '+(c.symbol||"").toUpperCase()+' — '+c.name+'</span>';
+  document.getElementById("search-status").innerHTML='<span style="color:#11a86a">✓ 已新增 '+sym+' — '+c.name+'</span>';
   renderCoinList();renderAlertFormCoins();
-  Object.keys(TF).forEach(function(tf){fetchOHLC(c.id,tf);});
+  Object.keys(TF_INTERVAL).forEach(function(tf){fetchKlines(pair,tf);});
   fetchPrices();
 }
-function removeCoin(id){
+function removeCoin(pair){
   if(coins.length<=1){showStatus("至少保留一個幣種","#cc2233","#fef0f0","#f0a0a8");return;}
-  coins=coins.filter(function(c){return c.id!==id;});
-  alerts=alerts.filter(function(a){return a.coin!==id;});
+  coins=coins.filter(function(c){return c.pair!==pair;});
+  alerts=alerts.filter(function(a){return a.pair!==pair;});
   saveCoins();saveAlerts();renderCoinList();renderAlertFormCoins();renderAlerts();renderMarket();
 }
 function resetCoins(){
-  if(!confirm("確定要重置為預設幣種？相關警報也會一併刪除。"))return;
+  if(!confirm("確定要重置為預設幣種？"))return;
   coins=JSON.parse(JSON.stringify(DEFAULT_COINS));
-  alerts=alerts.filter(function(a){return coins.find(function(c){return c.id===a.coin;});});
+  alerts=alerts.filter(function(a){return coins.find(function(c){return c.pair===a.pair;});});
   saveCoins();saveAlerts();renderCoinList();renderAlertFormCoins();renderAlerts();refreshAll();
 }
 function renderCoinList(){
   document.getElementById("coin-count").textContent="("+coins.length+"/"+MAX_COINS+")";
   document.getElementById("coin-list").innerHTML=coins.map(function(c,i){
     var col=COIN_COLORS[i%COIN_COLORS.length];
-    return'<div class="coin-tag"><div style="width:20px;height:20px;border-radius:50%;background:'+col+'22;border:1.5px solid '+col+'66;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:'+col+'">'+c.sym.slice(0,3)+'</div><span>'+c.sym+'</span><span style="color:#aab8cc;font-size:11px">'+c.name+'</span><button onclick="removeCoin(\''+c.id+'\')" style="cursor:pointer;border:none;background:none;color:#cc2233;font-size:15px;padding:0;line-height:1;margin-left:2px">×</button></div>';
+    return'<div class="coin-tag"><div style="width:20px;height:20px;border-radius:50%;background:'+col+'22;border:1.5px solid '+col+'66;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:'+col+'">'+c.sym.slice(0,3)+'</div><span>'+c.sym+'</span><span style="color:#aab8cc;font-size:11px">'+c.name+'</span><button onclick="removeCoin(\''+c.pair+'\')" style="cursor:pointer;border:none;background:none;color:#cc2233;font-size:15px;padding:0;line-height:1;margin-left:2px">×</button></div>';
   }).join("")||"<span style='color:#aab8cc;font-size:12px'>尚無幣種</span>";
 }
 function renderAlertFormCoins(){
   var sel=document.getElementById("form-coin");if(!sel)return;
   var cur=sel.value;
-  sel.innerHTML=coins.map(function(c){return'<option value="'+c.id+'">'+c.sym+' — '+c.name+'</option>';}).join("");
-  if(coins.find(function(c){return c.id===cur;}))sel.value=cur;
+  sel.innerHTML=coins.map(function(c){return'<option value="'+c.pair+'">'+c.sym+' — '+c.name+'</option>';}).join("");
+  if(coins.find(function(c){return c.pair===cur;}))sel.value=cur;
 }
 
+// ── 市場列表 ──────────────────────────────────────────────────────────────
 function renderMarket(){
   document.getElementById("market-rows").innerHTML=coins.map(function(coin,idx){
-    var p=prices[coin.id],key=coin.id+"_"+viewTf,rsi=rsiCache[key],adxD=adxCache[key];
-    var rz=rsiZ(rsi),az=adxZ(adxD?adxD.adx:null),up=p&&p.usd_24h_change>=0;
+    var p=prices[coin.pair];
+    var key=coin.pair+"_"+viewTf;
+    var rsi=rsiCache[key],adxD=adxCache[key];
+    var rz=rsiZ(rsi),az=adxZ(adxD?adxD.adx:null);
+    var up=p&&parseFloat(p.priceChangePercent)>=0;
     var color=COIN_COLORS[idx%COIN_COLORS.length];
+    var price=p?parseFloat(p.lastPrice):null;
+    var chg=p?parseFloat(p.priceChangePercent):null;
+    var vol=p?parseFloat(p.quoteVolume):null;
     var rsiHTML=rsi!=null?'<div class="gauge-wrap"><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;font-size:14px;color:'+rz.c+';min-width:38px">'+rsi+'</span><span style="font-size:10px;color:#fff;background:'+rz.c+';padding:2px 8px;border-radius:10px;white-space:nowrap;font-weight:500">'+rz.l+'</span></div><div class="gauge-bar-bg"><div class="gauge-bar-fill" style="width:'+Math.min(100,rsi)+'%;background:'+rz.c+'"></div></div></div>':"<span style='color:#aab8cc;font-size:11px'>計算中…</span>";
     var adxHTML="<span style='color:#aab8cc;font-size:11px'>計算中…</span>";
     if(adxD){var bull=adxD.plusDI>adxD.minusDI;adxHTML='<div class="gauge-wrap"><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;font-size:14px;color:'+az.c+';min-width:38px">'+adxD.adx+'</span><span style="font-size:10px;color:#fff;background:'+az.c+';padding:2px 8px;border-radius:10px;white-space:nowrap;font-weight:500">'+az.l+'</span></div><div class="gauge-bar-bg"><div class="gauge-bar-fill" style="width:'+Math.min(100,adxD.adx/80*100)+'%;background:'+az.c+'"></div></div><div class="di-wrap"><span class="di-badge" style="background:'+(bull?"#edfaf4":"#fef0f0")+';color:'+(bull?"#1a7a4a":"#cc2233")+'">+DI '+adxD.plusDI.toFixed(1)+'</span><span class="di-badge" style="background:'+(!bull?"#fef0f0":"#fff5e8")+';color:'+(!bull?"#cc2233":"#e87722")+'">−DI '+adxD.minusDI.toFixed(1)+'</span><span class="di-badge" style="background:#edf0f7;color:#4a5a7a">'+(bull?"↑ 多方":"↓ 空方")+'</span></div></div>';}
-    return'<div class="market-grid rh"><div style="display:flex;align-items:center;gap:9px"><div style="width:32px;height:32px;border-radius:50%;background:'+color+'18;border:1.5px solid '+color+'55;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:'+color+';flex-shrink:0">'+coin.sym.slice(0,4)+'</div><div><div style="color:#1a2233;font-weight:600;font-size:13px">'+coin.sym+'</div><div style="font-size:10px;color:#aab8cc">'+coin.name+'</div></div></div><div style="text-align:right;font-weight:700;color:#1a2233;font-size:14px">'+(p?fp(p.usd):"<span class='blink' style='color:#dde3ee'>—</span>")+'</div><div style="text-align:right;font-size:12px;font-weight:600;color:'+(p?(up?"#11a86a":"#e8445a"):"#dde3ee")+'">'+(p?fpct(p.usd_24h_change):"—")+'</div><div style="padding-left:8px">'+rsiHTML+'</div><div style="padding-left:8px">'+adxHTML+'</div><div style="text-align:right;font-size:11px;color:#7a8aaa">'+(p?fvol(p.usd_24h_vol):"—")+'</div><div style="text-align:center"><button onclick="removeCoin(\''+coin.id+'\')" style="cursor:pointer;border:none;background:none;color:#dde3ee;font-size:18px;padding:0;line-height:1;transition:color .15s" onmouseover="this.style.color=\'#e8445a\'" onmouseout="this.style.color=\'#dde3ee\'">×</button></div></div>';
+    return'<div class="market-grid rh"><div style="display:flex;align-items:center;gap:9px"><div style="width:32px;height:32px;border-radius:50%;background:'+color+'18;border:1.5px solid '+color+'55;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:'+color+';flex-shrink:0">'+coin.sym.slice(0,4)+'</div><div><div style="color:#1a2233;font-weight:600;font-size:13px">'+coin.sym+'</div><div style="font-size:10px;color:#aab8cc">'+coin.name+'</div></div></div>'
+    +'<div style="text-align:right;font-weight:700;color:#1a2233;font-size:14px">'+(price?fp(price):"<span class='blink' style='color:#dde3ee'>—</span>")+'</div>'
+    +'<div style="text-align:right;font-size:12px;font-weight:600;color:'+(p?(up?"#11a86a":"#e8445a"):"#dde3ee")+'">'+(chg!=null?fpct(chg):"—")+'</div>'
+    +'<div style="padding-left:8px">'+rsiHTML+'</div>'
+    +'<div style="padding-left:8px">'+adxHTML+'</div>'
+    +'<div style="text-align:right;font-size:11px;color:#7a8aaa">'+(vol?fvol(vol):"—")+'</div>'
+    +'<div style="text-align:center"><button onclick="removeCoin(\''+coin.pair+'\')" style="cursor:pointer;border:none;background:none;color:#dde3ee;font-size:18px;padding:0;line-height:1;transition:color .15s" onmouseover="this.style.color=\'#e8445a\'" onmouseout="this.style.color=\'#dde3ee\'">×</button></div></div>';
   }).join("")||"<div style='padding:40px;text-align:center;color:#aab8cc'>尚無追蹤幣種，請到「幣種管理」新增</div>";
 }
 
-function toggleForm(){
-  formVisible=!formVisible;
-  document.getElementById("alert-form").style.display=formVisible?"block":"none";
-  var btn=document.getElementById("add-btn");btn.textContent=formVisible?"✕ 收起":"+ 新增警報";btn.style.background=formVisible?"#edf0f7":"linear-gradient(90deg,#2255cc,#3a70ee)";btn.style.color=formVisible?"#4a5a7a":"#fff";
-  if(formVisible)updateFormHint();
-}
+// ── 警報 ──────────────────────────────────────────────────────────────────
+function toggleForm(){formVisible=!formVisible;document.getElementById("alert-form").style.display=formVisible?"block":"none";var btn=document.getElementById("add-btn");btn.textContent=formVisible?"✕ 收起":"+ 新增警報";btn.style.background=formVisible?"#edf0f7":"linear-gradient(90deg,#2255cc,#3a70ee)";btn.style.color=formVisible?"#4a5a7a":"#fff";if(formVisible)updateFormHint();}
 function updateFormHint(){
   var t=document.getElementById("form-type").value;
   document.getElementById("tf-row").style.display=(t.startsWith("rsi")||t.startsWith("adx"))?"block":"none";
-  var hints={rsi_above:"RSI > 70 = 超買訊號，價格可能面臨回調壓力。",rsi_below:"RSI < 30 = 超賣訊號，可能出現技術性反彈。",adx_above:"ADX > 25 = 出現明顯趨勢，搭配 +DI/-DI 判斷多空方向。",adx_below:"ADX < 20 = 市場盤整中，無明顯方向性。"};
-  var placeholders={rsi_above:"RSI 值（超買通常 70）",rsi_below:"RSI 值（超賣通常 30）",adx_above:"ADX 值（趨勢通常 25）",adx_below:"ADX 值（盤整通常 20）",price_above:"價格，例如 100000",price_below:"價格，例如 80000",price_change_up:"百分比，例如 5",price_change_down:"百分比，例如 5"};
+  var hints={rsi_above:"RSI > 70 = 超買訊號，可能面臨回調。",rsi_below:"RSI < 30 = 超賣訊號，可能出現反彈。",adx_above:"ADX > 25 = 出現明顯趨勢。",adx_below:"ADX < 20 = 市場盤整，無方向性。"};
+  var ph={rsi_above:"RSI 值（超買通常 70）",rsi_below:"RSI 值（超賣通常 30）",adx_above:"ADX 值（趨勢通常 25）",adx_below:"ADX 值（盤整通常 20）",price_above:"價格，例如 100000",price_below:"價格，例如 80000",price_change_up:"百分比，例如 5",price_change_down:"百分比，例如 5"};
   document.getElementById("form-hint").textContent=hints[t]||"";
-  document.getElementById("form-value").placeholder=placeholders[t]||"數值";
+  document.getElementById("form-value").placeholder=ph[t]||"數值";
 }
 function addAlert(){
-  var coin=document.getElementById("form-coin").value,type=document.getElementById("form-type").value,val=document.getElementById("form-value").value;
+  var pair=document.getElementById("form-coin").value,type=document.getElementById("form-type").value,val=document.getElementById("form-value").value;
   if(!val||isNaN(parseFloat(val)))return;
   var isInd=type.startsWith("rsi")||type.startsWith("adx");
-  alerts.push({id:Date.now(),coin:coin,type:type,value:val,tf:isInd?formTf:null,fired:false});
+  alerts.push({id:Date.now(),pair:pair,type:type,value:val,tf:isInd?formTf:null,fired:false});
   saveAlerts();renderAlerts();toggleForm();
 }
 function removeAlert(id){firedIds.delete(id);alerts=alerts.filter(function(a){return a.id!==id;});saveAlerts();renderAlerts();}
@@ -373,10 +388,11 @@ function renderAlerts(){
   var b=document.getElementById("alert-badge");b.textContent=active;b.style.display=active>0?"inline":"none";
   if(!alerts.length){document.getElementById("alert-list").innerHTML="<div style='text-align:center;color:#aab8cc;padding:48px 0;line-height:2.5'>尚無警報<br><span style='font-size:11px'>點擊「新增警報」開始監控</span></div>";return;}
   document.getElementById("alert-list").innerHTML=alerts.map(function(al){
-    var ci=coins.find(function(c){return c.id===al.coin;})||{sym:al.coin,name:""};
+    var ci=coins.find(function(c){return c.pair===al.pair;})||{sym:al.pair,name:""};
     var ti=AT.find(function(t){return t.id===al.type;})||{label:al.type,unit:"",color:"#2255cc"};
-    var key=al.coin+"_"+(al.tf||"1D");
-    var curV=al.type.startsWith("rsi")?rsiCache[key]:al.type.startsWith("adx")?(adxCache[key]?adxCache[key].adx:null):prices[al.coin]?prices[al.coin].usd:null;
+    var key=al.pair+"_"+(al.tf||"1D");
+    var p=prices[al.pair];
+    var curV=al.type.startsWith("rsi")?rsiCache[key]:al.type.startsWith("adx")?(adxCache[key]?adxCache[key].adx:null):(p?parseFloat(p.lastPrice):null);
     var curTxt=curV!=null?(al.type.startsWith("price")?fp(curV):curV):"計算中…";
     var tfB=al.tf?'<span style="font-size:10px;color:#2255cc;background:#eef2ff;border:1px solid #c0ccee;padding:1px 8px;border-radius:10px">'+al.tf+'</span>':"";
     var firedB=al.fired?'<span style="font-size:10px;background:#fef0f0;color:#cc2233;padding:1px 8px;border-radius:10px;border:1px solid #f0c0c4">✓ 已觸發</span>':"";
@@ -385,6 +401,7 @@ function renderAlerts(){
   }).join("");
 }
 
+// ── Log ───────────────────────────────────────────────────────────────────
 function clearLog(){log=[];saveLog();renderLog();}
 function renderLog(){
   var b=document.getElementById("log-badge");b.textContent=log.length;b.style.display=log.length>0?"inline":"none";
@@ -393,25 +410,30 @@ function renderLog(){
   document.getElementById("log-list").innerHTML=log.map(function(e){return'<div class="log-row fadein" style="border-left:3px solid '+e.color+'"><div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="color:#1a2233;font-weight:700">'+e.sym+'</span><span style="font-size:11px;color:#7a8aaa">'+e.label+'</span><span style="color:'+e.color+';font-weight:700">'+e.value+e.unit+'</span>'+(e.tf?'<span style="font-size:10px;color:#2255cc;background:#eef2ff;padding:1px 8px;border-radius:10px">'+e.tf+'</span>':"")+'</div><div style="font-size:11px;color:#7a8aaa">觸發值：<strong style="color:#1a2233">'+e.curVal+'</strong></div></div><span style="font-size:10px;color:#aab8cc;white-space:nowrap;margin-top:2px">'+e.time+'</span></div>';}).join("");
 }
 
+// ── 警報檢查 ──────────────────────────────────────────────────────────────
 function checkAlerts(){
   if(!Object.keys(prices).length)return;
   var changed=false;
   alerts.forEach(function(al){
     if(firedIds.has(al.id))return;
-    var p=prices[al.coin],key=al.coin+"_"+(al.tf||"1D"),rsi=rsiCache[key],adxD=adxCache[key];
+    var p=prices[al.pair];
+    var key=al.pair+"_"+(al.tf||"1D");
+    var rsi=rsiCache[key],adxD=adxCache[key];
+    var price=p?parseFloat(p.lastPrice):null;
+    var chg=p?parseFloat(p.priceChangePercent):null;
     if(!p)return;
     var val=parseFloat(al.value),hit=false,curVal=null;
-    if(al.type==="price_above"&&p.usd>=val){hit=true;curVal=fp(p.usd);}
-    if(al.type==="price_below"&&p.usd<=val){hit=true;curVal=fp(p.usd);}
-    if(al.type==="price_change_up"&&p.usd_24h_change>=val){hit=true;curVal=fpct(p.usd_24h_change);}
-    if(al.type==="price_change_down"&&p.usd_24h_change<=-val){hit=true;curVal=fpct(p.usd_24h_change);}
+    if(al.type==="price_above"&&price>=val){hit=true;curVal=fp(price);}
+    if(al.type==="price_below"&&price<=val){hit=true;curVal=fp(price);}
+    if(al.type==="price_change_up"&&chg>=val){hit=true;curVal=fpct(chg);}
+    if(al.type==="price_change_down"&&chg<=-val){hit=true;curVal=fpct(chg);}
     if(al.type==="rsi_above"&&rsi!=null&&rsi>=val){hit=true;curVal=rsi;}
     if(al.type==="rsi_below"&&rsi!=null&&rsi<=val){hit=true;curVal=rsi;}
-    if(al.type==="adx_above"&&adxD!=null&&adxD.adx>=val){hit=true;curVal=adxD.adx;}
-    if(al.type==="adx_below"&&adxD!=null&&adxD.adx<=val){hit=true;curVal=adxD.adx;}
+    if(al.type==="adx_above"&&adxD&&adxD.adx>=val){hit=true;curVal=adxD.adx;}
+    if(al.type==="adx_below"&&adxD&&adxD.adx<=val){hit=true;curVal=adxD.adx;}
     if(!hit)return;
     firedIds.add(al.id);al.fired=true;changed=true;
-    var ci=coins.find(function(c){return c.id===al.coin;})||{sym:al.coin};
+    var ci=coins.find(function(c){return c.pair===al.pair;})||{sym:al.pair};
     var ti=AT.find(function(t){return t.id===al.type;})||{label:al.type,unit:"",color:"#2255cc"};
     var tfLabel=al.tf?"（"+al.tf+" K線）":"";
     var msg="🔔 加密貨幣警報觸發！\n幣種："+ci.sym+"\n條件："+ti.label+" "+al.value+ti.unit+tfLabel+"\n目前值："+curVal+"\n時間："+new Date().toLocaleString("zh-TW",{timeZone:"Asia/Taipei"});
@@ -423,45 +445,52 @@ function checkAlerts(){
   if(changed){saveAlerts();saveLog();renderAlerts();renderLog();}
 }
 
+// ── 資料抓取 ──────────────────────────────────────────────────────────────
 async function fetchPrices(){
   try{
-    var ids=coins.map(function(c){return c.id;}).join(",");if(!ids)return;
-    var r=await fetch(PROXY+"/prices?ids="+ids);
-    prices=await r.json();
+    var syms=coins.map(function(c){return c.pair;});
+    if(!syms.length)return;
+    var r=await fetch(PROXY+"/prices?symbols="+syms.join(","));
+    var data=await r.json();
+    // Binance 回傳陣列
+    if(Array.isArray(data)){
+      data.forEach(function(t){prices[t.symbol]=t;});
+    }
     document.getElementById("sync-badge").textContent=new Date().toLocaleTimeString("zh-TW")+" 更新";
     renderMarket();checkAlerts();renderAlerts();
   }catch(e){document.getElementById("sync-badge").innerHTML="<span class='blink'>更新失敗</span>";}
 }
-var loadingTf=new Set();
-async function fetchOHLC(coinId,tf){
-  var key=coinId+"_"+tf;if(loadingTf.has(key))return;loadingTf.add(key);
+
+async function fetchKlines(pair,tf){
+  var key=pair+"_"+tf;
   try{
-    var r=await fetch(PROXY+"/ohlc?id="+coinId+"&days="+TF[tf].days);
+    var interval=TF_INTERVAL[tf]||"1h";
+    var limit=TF_LIMIT[tf]||100;
+    var r=await fetch(PROXY+"/klines?symbol="+pair+"&interval="+interval+"&limit="+limit);
     var data=await r.json();
     if(!Array.isArray(data)||data.length<30)return;
-    rsiCache[key]=calcRSI(data.map(function(d){return d[4];}),14);
-    var adx=calcADX(data,14);if(adx)adxCache[key]=adx;
+    // Binance kline: [openTime, open, high, low, close, volume, ...]
+    var closes=data.map(function(k){return parseFloat(k[4]);});
+    var ohlc=data.map(function(k){return[parseFloat(k[1]),parseFloat(k[2]),parseFloat(k[3]),parseFloat(k[4])];});
+    rsiCache[key]=calcRSI(closes,14);
+    var adx=calcADX(ohlc,14);
+    if(adx)adxCache[key]=adx;
     renderMarket();checkAlerts();renderAlerts();
   }catch(e){}
-  loadingTf.delete(key);
 }
-function refreshAll(){fetchPrices();coins.forEach(function(c){Object.keys(TF).forEach(function(tf){fetchOHLC(c.id,tf);});});}
 
+function refreshAll(){
+  fetchPrices();
+  coins.forEach(function(c){
+    Object.keys(TF_INTERVAL).forEach(function(tf){fetchKlines(c.pair,tf);});
+  });
+}
+
+// ── 初始化 ────────────────────────────────────────────────────────────────
 renderCoinList();renderAlertFormCoins();renderAlerts();renderLog();updateFormHint();
-// 初始載入：先抓價格，再錯開時間逐一抓 OHLC
-fetchPrices();
-coins.forEach(function(c,i){
-  setTimeout(function(){
-    fetchOHLC(c.id,"1H");
-    setTimeout(function(){fetchOHLC(c.id,"4H");},1500);
-    setTimeout(function(){fetchOHLC(c.id,"1D");},3000);
-  }, i * 10000);
-});
-// 定期更新：價格每60秒，指標每5/10/15分鐘
-setInterval(fetchPrices, 60000);
-setInterval(function(){coins.forEach(function(c,i){setTimeout(function(){fetchOHLC(c.id,"1H");},i*10000);});}, 5*60000);
-setInterval(function(){coins.forEach(function(c,i){setTimeout(function(){fetchOHLC(c.id,"4H");},i*10000);});}, 10*60000);
-setInterval(function(){coins.forEach(function(c,i){setTimeout(function(){fetchOHLC(c.id,"1D");},i*10000);});}, 15*60000);
+refreshAll();
+setInterval(fetchPrices, 30000);
+setInterval(function(){coins.forEach(function(c){Object.keys(TF_INTERVAL).forEach(function(tf){fetchKlines(c.pair,tf);});});}, 5*60000);
 document.addEventListener("click",function(e){if(!e.target.closest("#coin-search-input")&&!e.target.closest("#search-dropdown"))document.getElementById("search-dropdown").style.display="none";});
 </script>
 </body>
