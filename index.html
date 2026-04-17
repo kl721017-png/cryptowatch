@@ -340,9 +340,9 @@ function checkAlerts(){
 async function fetchPrices(){
   try{
     var syms=coins.map(function(c){return c.sym;}).join(",");
-    var r=await fetch(PROXY+"/prices?symbols="+syms);
+    // 【更新】使用 fsyms 與 tsyms 符合 CryptoCompare API
+    var r=await fetch(PROXY+"/prices?fsyms="+syms+"&tsyms=USD");
     var data=await r.json();
-    // CryptoCompare 格式: { RAW: { BTC: { USD: { PRICE, CHANGEPCT24HOUR, TOTALVOLUME24HTO } } } }
     if(data.RAW){
       Object.keys(data.RAW).forEach(function(sym){
         var d=data.RAW[sym].USD;
@@ -357,14 +357,23 @@ async function fetchPrices(){
 async function fetchKlines(sym,tf){
   var key=sym+"_"+tf;
   try{
-    var r=await fetch(PROXY+"/klines?symbol="+sym+"&interval="+tf+"&limit=120");
-    var data=await r.json();
+    // 【更新】將 tf 轉換為 CryptoCompare 支援的參數，並改呼叫 /ohlc 路由
+    var type="histohour", aggregate=1;
+    if(tf==="4H"){ type="histohour"; aggregate=4; }
+    if(tf==="1D"){ type="histoday"; aggregate=1; }
+    
+    var r=await fetch(PROXY+"/ohlc?fsym="+sym+"&tsym=USD&limit=120&type="+type+"&aggregate="+aggregate);
+    var res=await r.json();
+    var data = res.Data && res.Data.Data ? res.Data.Data : [];
+    
     if(!Array.isArray(data)||data.length<30)return;
-    // CryptoCompare: [{time,open,high,low,close,volumefrom}, ...]
+    
     var closes=data.map(function(k){return k.close;});
     var ohlc=data.map(function(k){return[k.open,k.high,k.low,k.close];});
+    
     rsiCache[key]=calcRSI(closes,14);
     var adx=calcADX(ohlc,14);if(adx)adxCache[key]=adx;
+    
     renderMarket();checkAlerts();renderAlerts();
   }catch(e){}
 }
