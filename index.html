@@ -341,7 +341,7 @@ async function fetchPrices(){
   try{
     var syms=coins.map(function(c){return c.sym;}).join(",");
     // 【更新】使用 fsyms 與 tsyms 符合 CryptoCompare API
-    var r=await fetch(PROXY+"/prices?fsyms="+syms+"&tsyms=USD");
+    var r=await fetch(PROXY+"/prices?symbols="+syms);
     var data=await r.json();
     if(data.RAW){
       Object.keys(data.RAW).forEach(function(sym){
@@ -362,7 +362,7 @@ async function fetchKlines(sym,tf){
     if(tf==="4H"){ type="histohour"; aggregate=4; }
     if(tf==="1D"){ type="histoday"; aggregate=1; }
     
-    var r=await fetch(PROXY+"/ohlc?fsym="+sym+"&tsym=USD&limit=120&type="+type+"&aggregate="+aggregate);
+    var r=await fetch(PROXY+"/klines?symbol="+sym+"&interval="+tf+"&limit=120");
     var res=await r.json();
     var data = res.Data && res.Data.Data ? res.Data.Data : [];
     
